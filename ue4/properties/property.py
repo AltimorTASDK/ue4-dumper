@@ -99,14 +99,15 @@ class UProperty():
             value_tag = FDummyTag(tag.ValueType)
 
             NumKeysToRemove = reader.s32()
+
+            [UProperty(reader, key_tag) for _ in range(NumKeysToRemove)]
+
             NumEntries = reader.s32()
 
             debug_print("    " * UProperty.IndentLevel, end="")
             debug_print(f"InnerType {tag.InnerType} " +
                         f"ValueType {tag.ValueType} NumEntries {NumEntries} " +
                         f"NumKeysToRemove {NumKeysToRemove}")
-
-            [UProperty(reader, key_tag) for _ in range(NumKeysToRemove)]
 
             self.Data = {
                 UProperty(reader, key_tag).Data: UProperty(reader, value_tag)
