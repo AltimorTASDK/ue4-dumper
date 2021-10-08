@@ -225,7 +225,7 @@ def FName(reader):
     ExtraIndex = reader.u32()
 
     if Index > len(reader.NameTable):
-        print(f"Invalid name index 0x{Index:08X} @ 0x{reader.offset:X}")
+        print(f"Invalid name index 0x{Index:08X} @ {reader.offset_string()}")
 
     name = reader.NameTable[Index]
     if ExtraIndex == 0:

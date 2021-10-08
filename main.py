@@ -4,8 +4,8 @@ import json
 import re
 import traceback
 from enum import Enum
-from ue4 import FPackageReader, debug_print
-from ue4.properties import UProperty
+from ue4 import FPackageReader, FName, debug_print
+from ue4.properties import UProperty, UStructProperty
 
 # GAME_PATH_RE = re.compile(r"[/\\][Gg]ame[/\\]")
 GAME_PATH_RE = re.compile(r"[/\\][Cc]ontent[/\\]")
@@ -59,20 +59,18 @@ def read_package(data, uexp_offset):
     for i, export in enumerate(reader.ExportTable):
         obj = {}
         reader.seek(export.SerialOffset)
-        end = export.SerialOffset + export.SerialSize
-        while reader.tell() < end:
-            try:
-                prop = UProperty(reader)
-            except Exception as exception:
-                exception.args = (*exception.args, reader.offset_string())
-                raise exception
+        export_name = reader.GetObjectFullName(i + 1)
+        debug_print(f"Export {export_name} @ {reader.offset_string()}")
+        obj = UStructProperty(reader)
 
-            if prop.Name == "None":
-                break
+        if reader.GetObjectName(export.ClassIndex) == "DataTable":
+            reader.s32()
+            NumRows = reader.s32()
+            obj.RowMap = {
+                FName(reader): UStructProperty(reader) for _ in range(NumRows)
+            }
 
-            obj[prop.Name] = prop
-
-        objects[reader.GetObjectFullName(i + 1)] = obj
+        objects[export_name] = obj
 
     return objects
 
