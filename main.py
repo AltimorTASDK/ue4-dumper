@@ -7,8 +7,7 @@ from enum import Enum
 from ue4 import FPackageReader, FName, debug_print
 from ue4.properties import UProperty, UStructProperty
 
-# GAME_PATH_RE = re.compile(r"[/\\][Gg]ame[/\\]")
-GAME_PATH_RE = re.compile(r"[/\\][Cc]ontent[/\\]")
+GAME_PATH_RE = re.compile(r"[/\\]([Gg]ame|[Cc]ontent)[/\\]")
 
 class UObject():
     pass
