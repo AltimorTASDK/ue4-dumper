@@ -154,8 +154,11 @@ class ExImTable():
             return self.table[index]
         except IndexError as exception:
             exception.args = (*exception.args,
-                              f"index {index}/{len(self.table) - 1}")
+                              f"index {index}/{len(self) - 1}")
             raise exception
+
+    def __len__(self):
+        return len(self.table)
 
 class FPackageReader(BinaryReader):
     def __init__(self, buffer, uexp_offset=None):
@@ -193,32 +196,31 @@ class FPackageReader(BinaryReader):
 
     def GetObjectQualifiedName(self, index):
         if index < 0:
-            return self.GetObjectName(index)
+            outer = self.ImportTable[-index - 1].PackageIndex
         elif index > 0:
-            export = self.ExportTable[index - 1]
-            name = export.ObjectName
-            super_index = export.SuperIndex
+            outer = self.ExportTable[index - 1].SuperIndex
+        else:
+            return "None"
 
-            if super_index == 0:
-                return name
+        name = self.GetObjectName(index)
+        if outer == 0:
+            return name
+        else:
+            return f"{self.GetObjectQualifiedName(outer)}.{name}"
 
-            return f"{self.GetObjectQualifiedName(super_index)}.{name}"
+    def GetObjectClassName(self, index):
+        if index < 0:
+            return self.ImportTable[-index - 1].ClassName
+        elif index > 0:
+            return self.GetObjectName(self.ExportTable[index - 1].ClassIndex)
         else:
             return "None"
 
     def GetObjectFullName(self, index):
-        if index < 0:
-            imp = self.ImportTable[-index - 1]
-            return (
-                f"{imp.ClassName} "
-                f"{self.GetObjectName(imp.PackageIndex)}.{imp.ObjectName}")
-        elif index > 0:
-            export = self.ExportTable[index - 1]
-            return (
-                f"{self.GetObjectName(export.ClassIndex)} "
-                f"{self.GetObjectQualifiedName(index)}")
-        else:
+        if index == 0:
             return "None"
+        return (f"{self.GetObjectClassName(index)} "
+                f"{self.GetObjectQualifiedName(index)}")
 
 def FName(reader):
     Index = reader.u32()

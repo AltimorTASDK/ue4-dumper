@@ -1,30 +1,37 @@
+import sys
 from .property import UProperty, PROPERTY_TYPE_MAP
 
-class UStructProperty():
+class UStructProperty:
     def __init__(self, reader):
-        self.fields = []
-        self.fieldCount = {}
+        self.fields = {}
         while True:
             field = UProperty(reader)
-            if field.Name == "None":
+            name = field.Name
+
+            if name == "None":
                 break
 
-            if field.Name in self.fieldCount:
-                self.fieldCount[field.Name] += 1
-            else:
-                self.fieldCount[field.Name] = 0
+            if field.ArrayIndex != 0:
+                if name in self.fields:
+                    if f"{name}[0]" in self.fields:
+                        raise RuntimeError(f"Duplicate field {name}[0]")
+                    self.fields[f"{name}[0]"] = self.fields.pop(name)
+                name += f"[{field.ArrayIndex}]"
 
-            self.fields.append(field)
+            if name in self.fields:
+                raise RuntimeError(f"Duplicate field {name}")
+            self.fields[name] = field
 
-        for field in self.fields:
-            if self.fieldCount[field.Name] > 0 or field.ArrayIndex != 0:
-                name = f"{field.Name}[{field.ArrayIndex}]"
-            else:
-                name = field.Name
+    def get(self, name, default):
+        if name in self.fields:
+            return self[name]
+        else:
+            return default
 
-            setattr(self, name, field)
+    def __getattr__(self, name):
+        return self.fields[name].Data
 
-        del self.fields
-        del self.fieldCount
+    def __getitem__(self, name):
+        return self.fields[name].Data
 
 PROPERTY_TYPE_MAP["StructProperty"] = UStructProperty

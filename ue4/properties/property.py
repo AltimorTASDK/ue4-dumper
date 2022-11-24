@@ -10,7 +10,6 @@ PROPERTY_TYPE_MAP = {
     "EnumProperty": FName,
     "NameProperty": FName,
     "StrProperty": FString,
-    "ObjectProperty": lambda r: r.GetObjectFullName(r.s32()),
     "SoftObjectProperty": lambda r: f"{FName(r)}-{r.s32()}"
 }
 
@@ -70,13 +69,11 @@ class UProperty():
 
         debug_print("    " * UProperty.IndentLevel, end="")
         if tag.Type == "StructProperty":
-            debug_print(
-                f"Property struct {tag.StructName} {tag.Name} "
-                f"@ {offset} size {tag.Size}")
+            debug_print(f"Property struct {tag.StructName} {tag.Name} "
+                        f"@ {offset} size {tag.Size}")
         else:
-            debug_print(
-                f"Property {tag.Type} {tag.Name} "
-                f"@ {offset} size {tag.Size}")
+            debug_print(f"Property {tag.Type} {tag.Name} "
+                        f"@ {offset} size {tag.Size}")
 
         self.Name = tag.Name
         self.Type = tag.Type
@@ -84,10 +81,14 @@ class UProperty():
 
         UProperty.IndentLevel += 1
 
-        if tag.Type == "StructProperty" and tag.StructName in STRUCT_TYPE_MAP:
-            self.Data = STRUCT_TYPE_MAP[tag.StructName](reader)
-            UProperty.IndentLevel -= 1
-            return
+        if tag.Type == "StructProperty":
+            self.StructName = tag.StructName
+            if tag.StructName in STRUCT_TYPE_MAP:
+                self.Data = STRUCT_TYPE_MAP[tag.StructName](reader)
+                UProperty.IndentLevel -= 1
+                return
+        else:
+            self.StructName = None
 
         if tag.Type == "BoolProperty":
             self.Data = tag.BoolVal
