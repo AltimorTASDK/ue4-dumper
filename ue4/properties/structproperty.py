@@ -28,10 +28,12 @@ class UStructProperty:
         else:
             return default
 
-    def __getattr__(self, name):
+    def __getitem__(self, name):
+        if name not in self.fields:
+            raise AttributeError(name)
         return self.fields[name].Data
 
-    def __getitem__(self, name):
-        return self.fields[name].Data
+    def __getattr__(self, name):
+        return self[name]
 
 PROPERTY_TYPE_MAP["StructProperty"] = UStructProperty
