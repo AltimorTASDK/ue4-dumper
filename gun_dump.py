@@ -125,7 +125,8 @@ def inherit_properties(sub, base):
     elif isinstance(sub, UStructProperty):
         sub.fields = inherit_properties(sub.fields, base.fields)
     elif isinstance(sub, UProperty):
-        sub.Data = inherit_properties(sub.Data, base.Data)
+        if sub.Type != "ObjectProperty":
+            sub.Data = inherit_properties(sub.Data, base.Data)
     return sub
 
 def sort_properties(obj):
