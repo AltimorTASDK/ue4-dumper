@@ -1,5 +1,5 @@
-from .richcurvekey import (FRichCurveKey,
-    ERichCurveInterpMode, ERichCurveTangentMode, ERichCurveTangentWeightMode)
+from .richcurvekey import FRichCurveKey, ERichCurveInterpMode
+from .richcurvekey import ERichCurveTangentMode, ERichCurveTangentWeightMode
 from .rotator import FRotator
 from .vector import FVector, FVector2D, FVector4, FIntPoint
 from .quat import FQuat
