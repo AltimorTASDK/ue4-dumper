@@ -81,6 +81,9 @@ class FGuid():
         self.C = reader.u32()
         self.D = reader.u32()
 
+    def __str__(self):
+        return f"{self.A:08X}-{self.B:08X}-{self.C:08X}-{self.D:08X}"
+
 class FCustomVersion():
     def __init__(self, reader):
         self.Key = FGuid(reader)
