@@ -77,6 +77,9 @@ def dump_asset(path):
         if isinstance(obj, Enum):
             return obj._name_
         elif isinstance(obj, UProperty):
+            if obj.Type == "MapProperty" and obj.InnerType == "StructProperty":
+                return [{"Key": json_default(k), "Value": json_default(v)}
+                        for k, v in obj.Data.items()]
             return json_default(obj.Data)
         elif isinstance(obj, UArrayProperty):
             return json_default(obj.elems)

@@ -1,6 +1,5 @@
 from ue4 import FName, FGuid, FString, FPackageReader, debug_print
 from ue4.structs import STRUCT_TYPE_MAP
-import traceback
 
 PROPERTY_TYPE_MAP = {
     "IntProperty": FPackageReader.s32,
@@ -96,6 +95,8 @@ class UProperty():
             return
 
         if tag.Type == "MapProperty":
+            self.InnerType = tag.InnerType
+            self.ValueType = tag.ValueType
             key_tag = FDummyTag(tag.InnerType)
             value_tag = FDummyTag(tag.ValueType)
 
