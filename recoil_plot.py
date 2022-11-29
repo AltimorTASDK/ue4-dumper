@@ -69,7 +69,7 @@ def eval_curve(curve, time):
 def smooth_step(a, b, t):
     return lerp(a, b, (3 - 2*t) * t*t)
 
-def get_spray_pattern(gun, start=0, end=1000, *, flip=False, subdivs=1):
+def get_pattern(gun, start=0, end=1000, *, flip=False, subdivs=1):
     stability = gun.Stability
     yaw_manipulator = stability.YawDirectionManipulator
     flip_time = 0.0
@@ -101,7 +101,7 @@ def deg_to_px(degrees):
 def spray_to_px(pattern):
     return [(deg_to_px(yaw), deg_to_px(pitch)) for pitch, yaw in pattern]
 
-def invert_axes(points):
+def invert(points):
     return [[-x for x in p] for p in points]
 
 def split_axes(points):
@@ -121,25 +121,25 @@ def main():
     plt.imshow(plt.imread("recoil_bg.png"), extent=VIEWPORT)
     plt.axhspan(*VIEWPORT[2:4], *VIEWPORT[0:2], color='0', alpha=0.8)
 
-    pattern = spray_to_px(get_spray_pattern(gun, subdivs=10))
-    flipped = spray_to_px(get_spray_pattern(gun, subdivs=10, flip=True))
-    pattern_padded = [*pattern, sorted(pattern, key=lambda p: p[1])[-1]]
-    flipped_padded = [*flipped, sorted(flipped, key=lambda p: p[1])[-1]]
-    pattern_x, pattern_y = split_axes(invert_axes(pattern_padded))
-    flipped_x, flipped_y = split_axes(invert_axes(flipped_padded))
-    plt.fill_betweenx(pattern_y, pattern_x, flipped_x, facecolor='1', alpha=0.25)
+    spray = spray_to_px(get_pattern(gun, subdivs=10))
+    flip  = spray_to_px(get_pattern(gun, subdivs=10, flip=True))
+    spray_closed = [*spray, sorted(spray, key=lambda p: p[1])[-1]]
+    flip_closed  = [*flip,  sorted(flip,  key=lambda p: p[1])[-1]]
+    spray_x, spray_y = split_axes(invert(spray_closed))
+    flip_x,  flip_y  = split_axes(invert(flip_closed))
+    plt.fill_betweenx(spray_y, spray_x, flip_x, facecolor='1', alpha=0.25)
 
     flip_start = int(gun.Stability.YawDirectionManipulator.ProtectedBulletCount)
 
-    pattern = spray_to_px(get_spray_pattern(gun, subdivs=10))
-    flipped = spray_to_px(get_spray_pattern(gun, flip_start, subdivs=10, flip=True))
-    plt.plot(*split_axes(invert_axes(flipped)), markerfacecolor='#13AFC0')
-    plt.plot(*split_axes(invert_axes(pattern)), markerfacecolor='#FF7F00')
+    spray = spray_to_px(get_pattern(gun, subdivs=10))
+    flip  = spray_to_px(get_pattern(gun, flip_start, subdivs=10, flip=True))
+    plt.plot(*split_axes(invert(flip)),  color='#13AFC0', alpha=0.5)
+    plt.plot(*split_axes(invert(spray)), color='#FF7F00', alpha=0.5)
 
-    pattern = spray_to_px(get_spray_pattern(gun))
-    flipped = spray_to_px(get_spray_pattern(gun, flip_start, flip=True))
-    plt.plot(*split_axes(invert_axes(flipped)), "o", markerfacecolor='#13AFC0')
-    plt.plot(*split_axes(invert_axes(pattern)), "o", markerfacecolor='#FF7F00')
+    spray = spray_to_px(get_pattern(gun))
+    flip  = spray_to_px(get_pattern(gun, flip_start, flip=True))
+    plt.plot(*split_axes(invert(flip)),  "o", color='#13AFC0')
+    plt.plot(*split_axes(invert(spray)), "o", color='#FF7F00')
 
     plt.autoscale()
     plt.gca().set_xbound(-256, 256)
