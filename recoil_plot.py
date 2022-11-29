@@ -5,12 +5,15 @@ import os
 import sys
 import matplotlib.pyplot as plt
 from itertools import pairwise
+from matplotlib.transforms import Bbox
 from numpy import float32
 from numpy.linalg import norm
 
 RESOLUTION_X = 1920
 RESOLUTION_Y = 1080
 VIEWPORT = [-RESOLUTION_X/2, RESOLUTION_X/2, -RESOLUTION_Y/2, RESOLUTION_Y/2]
+DPI = 300
+CROP = np.array([256, 256])
 
 HALF_VFOV_TAN = math.tan(45 * math.pi/180) * 3/4
 
@@ -115,11 +118,8 @@ def main():
 
     plt.rc('lines', linewidth=0.5, markersize=1, markeredgewidth=0)
 
-    plt.axis('off')
-    plt.subplots_adjust(0, 0, 1, 1, 0, 0)
-
     plt.imshow(plt.imread("recoil_bg.png"), extent=VIEWPORT)
-    plt.axhspan(*VIEWPORT[2:4], *VIEWPORT[0:2], color='0', alpha=0.8)
+    plt.axhspan(*VIEWPORT[2:4], *VIEWPORT[0:2], color='0', alpha=0.75)
 
     spray = spray_to_px(get_pattern(gun, subdivs=10))
     flip  = spray_to_px(get_pattern(gun, subdivs=10, flip=True))
@@ -141,13 +141,17 @@ def main():
     plt.plot(*split_axes(invert(flip)),  "o", color='#13AFC0')
     plt.plot(*split_axes(invert(spray)), "o", color='#FF7F00')
 
+    plt.axis('off')
+    plt.subplots_adjust(0, 0, 1, 1, 0, 0)
     plt.autoscale()
-    plt.gca().set_xbound(-256, 256)
-    plt.gca().set_ybound(-256, 256)
+
+    tight_bbox = plt.gcf().get_tightbbox()
+    center = (tight_bbox.min + tight_bbox.max) / 2
+    bbox = Bbox([center - CROP/DPI/2, center + CROP/DPI/2])
 
     out_path = get_output_path(in_path)
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
-    plt.savefig(out_path, dpi=300, bbox_inches='tight', pad_inches=0)
+    plt.savefig(out_path, dpi=DPI, bbox_inches=bbox)
     print(f"Wrote to \"{out_path}\"")
 
 if __name__ == "__main__":
