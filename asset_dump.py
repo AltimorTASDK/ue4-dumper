@@ -20,7 +20,7 @@ def get_output_path(path):
     """Generate an output path."""
     return os.path.join(os.path.dirname(os.path.realpath(__file__)),
                         "output",
-                        f"{get_asset_path(path).replace('.uasset', '')}.json")
+                        f"{os.path.splitext(get_asset_path(path))[0]}.json")
 
 def read_package(reader):
     for i, name in enumerate(reader.NameTable):
@@ -58,9 +58,10 @@ def dump_asset(path):
         return
 
     uexp_offset = None
+    root, ext = os.path.splitext(path)
 
-    if path.endswith(".uasset"):
-        uexp = path.replace(".uasset", ".uexp")
+    if ext == ".uasset":
+        uexp = f"{root}.uexp"
         if os.path.exists(uexp):
             uexp_offset = len(data)
             try:

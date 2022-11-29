@@ -13,21 +13,22 @@ from ue4.structs import ERichCurveInterpMode as RCIM
 from ue4.structs import ERichCurveTangentMode as RCTM
 from ue4.structs import ERichCurveTangentWeightMode as RCTWM
 
-GAME_PATH_RE = re.compile(r"((?:.*[/\\]|^)(?:[Gg]ame[/\\]|[Cc]ontent[/\\]))(.*)")
+GAME_PATH_RE = re.compile(r"((?:.*[/\\]|^)(?:Game[/\\]|Content[/\\]))(.*)")
+GUN_PATH_RE  = re.compile(r"((?:.*[/\\]|^)(?:Equippables[/\\]Guns[/\\]))(.*)")
 
 def get_game_path(path):
     """Get the base game content path based on a uasset path."""
     return GAME_PATH_RE.match(os.path.abspath(path)).group(1)
 
-def get_asset_path(path):
-    """Get the path of a uasset relative to the content directory."""
-    return GAME_PATH_RE.match(os.path.abspath(path)).group(2)
+def get_gun_path(path):
+    """Get the path of a gun uasset relative to the Guns directory."""
+    return GUN_PATH_RE.match(os.path.abspath(path)).group(2)
 
 def get_output_path(path):
     """Generate an output path."""
     return os.path.join(os.path.dirname(os.path.realpath(__file__)),
                         "guns",
-                        f"{get_asset_path(path).replace('.uasset', '')}.json")
+                        f"{os.path.splitext(get_gun_path(path))[0]}.json")
 
 class AssetManager:
     def __init__(self, game_path):
@@ -43,9 +44,10 @@ class AssetManager:
             data = f.read()
 
         uexp_offset = None
+        root, ext = os.path.splitext(path)
 
-        if path.endswith(".uasset"):
-            uexp = path.replace(".uasset", ".uexp")
+        if ext == ".uasset":
+            uexp = f"{root}.uexp"
             if os.path.exists(uexp):
                 uexp_offset = len(data)
                 with open(uexp, "rb") as f:
