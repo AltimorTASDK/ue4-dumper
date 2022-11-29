@@ -9,11 +9,11 @@ from matplotlib.transforms import Bbox
 from numpy import float32
 from numpy.linalg import norm
 
-RESOLUTION_X = 1920
-RESOLUTION_Y = 1080
-VIEWPORT = [-RESOLUTION_X/2, RESOLUTION_X/2, -RESOLUTION_Y/2, RESOLUTION_Y/2]
-DPI = 300
-CROP = np.array([256, 256])
+VIEWPORT_X = 1920
+VIEWPORT_Y = 1080
+VIEWPORT   = [-VIEWPORT_X/2, VIEWPORT_X/2, -VIEWPORT_Y/2, VIEWPORT_Y/2]
+CROP       = np.array([256, 256])
+DPI        = 300
 
 HALF_VFOV_TAN = math.tan(45 * math.pi/180) * 3/4
 
@@ -99,7 +99,7 @@ def spray_to_mil(pattern):
     return [(deg_to_mil(yaw), deg_to_mil(pitch)) for pitch, yaw in pattern]
 
 def deg_to_px(degrees):
-    return math.tan(degrees * math.pi/180) / HALF_VFOV_TAN * RESOLUTION_Y/2
+    return math.tan(degrees * math.pi/180) / HALF_VFOV_TAN * VIEWPORT_Y/2
 
 def spray_to_px(pattern):
     return [(deg_to_px(yaw), deg_to_px(pitch)) for pitch, yaw in pattern]
@@ -142,7 +142,7 @@ def main():
     plt.plot(*split_axes(invert(spray)), "o", color='#FF7F00')
 
     plt.axis('off')
-    plt.subplots_adjust(0, 0, 1, 1, 0, 0)
+    plt.subplots_adjust(0, 0, 1, 1)
     plt.autoscale()
 
     tight_bbox = plt.gcf().get_tightbbox()
