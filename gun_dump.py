@@ -28,7 +28,7 @@ def get_output_path(path):
     """Generate an output path."""
     return os.path.join(os.path.dirname(os.path.realpath(__file__)),
                         "guns",
-                        f"{os.path.splitext(get_gun_path(path))[0]}.json")
+                        f"{os.path.split(get_gun_path(path))[0]}.json")
 
 class AssetManager:
     def __init__(self, game_path):
