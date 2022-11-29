@@ -4,6 +4,7 @@ import json
 import re
 import traceback
 from enum import Enum
+from numpy import float32
 from ue4 import FPackageReader, FName, debug_print
 from ue4.properties import UProperty, UArrayProperty, UObjectProperty
 from ue4.properties import UStructProperty
@@ -88,7 +89,7 @@ def dump_asset(path):
         elif isinstance(obj, UStructProperty):
             return json_default(obj.fields)
         elif isinstance(obj, float):
-            return round(obj, 5)
+            return round(obj, 7)
         elif isinstance(obj, dict):
             return {json_default(k): json_default(v) for k, v in obj.items()}
         elif hasattr(obj, "__dict__"):

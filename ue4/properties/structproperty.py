@@ -1,5 +1,5 @@
-import sys
 from .property import UProperty, PROPERTY_TYPE_MAP
+from ue4.structs import STRUCT_TYPE_MAP
 
 class UStructProperty:
     def __init__(self, reader):
@@ -37,3 +37,5 @@ class UStructProperty:
         return self[name]
 
 PROPERTY_TYPE_MAP["StructProperty"] = UStructProperty
+
+STRUCT_TYPE_MAP["RuntimeFloatCurve"] = UStructProperty

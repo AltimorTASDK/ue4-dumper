@@ -4,9 +4,14 @@ import json
 import re
 import traceback
 from enum import Enum
+from numpy import float32
 from ue4 import FPackageReader
 from ue4.properties import UProperty, UArrayProperty, UObjectProperty
 from ue4.properties import UStructProperty
+from ue4.structs import STRUCT_TYPE_MAP
+from ue4.structs import ERichCurveInterpMode as RCIM
+from ue4.structs import ERichCurveTangentMode as RCTM
+from ue4.structs import ERichCurveTangentWeightMode as RCTWM
 
 GAME_PATH_RE = re.compile(r"((?:.*[/\\]|^)(?:[Gg]ame[/\\]|[Cc]ontent[/\\]))(.*)")
 
@@ -125,8 +130,11 @@ def inherit_properties(sub, base):
     elif isinstance(sub, UStructProperty):
         sub.fields = inherit_properties(sub.fields, base.fields)
     elif isinstance(sub, UProperty):
-        if sub.Type != "ObjectProperty":
-            sub.Data = inherit_properties(sub.Data, base.Data)
+        if sub.Type == "StructProperty" and sub.StructName in STRUCT_TYPE_MAP:
+            return sub
+        if sub.Type == "ObjectProperty":
+            return sub
+        sub.Data = inherit_properties(sub.Data, base.Data)
     return sub
 
 def sort_properties(obj):
@@ -185,13 +193,15 @@ def read_gun(manager, path):
             blueprint = manager.read_export(reader, export.ObjectName)
             break
 
-    magazine  = get_component(blueprint, "MagazineAmmo")
-    reserve   = get_component(blueprint, "ReserveAmmo")
-    firing    = get_component(blueprint, "FiringState")
-    zoom_rof  = get_component(blueprint, "Comp_Gun_ZoomFiringRateModifier")
-    stability = get_component(blueprint, "Stability")
-    zoom_stab = get_component(blueprint, "ZoomedStability")
-    readying  = get_component(blueprint, "ReadyingState")
+    magazine   = get_component(blueprint, "MagazineAmmo")
+    reserve    = get_component(blueprint, "ReserveAmmo")
+    firing     = get_component(blueprint, "FiringState")
+    zoom_rof   = get_component(blueprint, "Comp_Gun_ZoomFiringRateModifier")
+    stability  = get_component(blueprint, "Stability")
+    stab_zoom  = get_component(blueprint, "ZoomedStability")
+    stab_2nd   = get_component(blueprint, "SecondaryModeStability")
+    stab_burst = get_component(blueprint, "BurstStability")
+    readying   = get_component(blueprint, "ReadyingState")
 
     projectile  = firing.ProjectileTuning.ProjectileFired
     damage_comp = get_component(projectile, "DamageProjectileEffectComponent")
@@ -202,54 +212,66 @@ def read_gun(manager, path):
     wall_pen.fields.setdefault("PenetrationPowerMultiplier", 1.0)
 
     gun = {
-        'DamageTuning':    skip_fields(damage,    "DamageType"),
+        'DamageTuning':    skip_fields(damage,     "DamageType"),
         'MagazineAmmo':    magazine,
         'ReserveAmmo':     reserve,
-        'FiringState':     only_fields(firing,    "FiringRate",
-                                                  "ErrorPower"),
-        'ZoomFiringRate':  only_fields(zoom_rof,  "ZoomFiringRateMultiplier"),
-        'Penetration':     only_fields(wall_pen,  "StoppingDistanceMultiplier",
-                                                  "PenetrationPowerMultiplier"),
-        'Stability':       skip_fields(stability, "ComponentTags"),
-        'ZoomedStability': skip_fields(zoom_stab, "ComponentTags"),
-        'ReadyingState':   only_fields(readying,  "ReadyingTimes[0]",
-                                                  "ReadyingTimes[1]",
-                                                  "ReadyingTimes[2]")
+        'FiringState':     only_fields(firing,     "FiringRate",
+                                                   "ErrorPower",
+                                                   "ErrorRetries"),
+        'ZoomFiringRate':  only_fields(zoom_rof,   "ZoomFiringRateMultiplier"),
+        'Penetration':     only_fields(wall_pen,   "StoppingDistanceMultiplier",
+                                                   "PenetrationPowerMultiplier"),
+        'Stability':       skip_fields(stability,  "ComponentTags"),
+        'ZoomedStability': skip_fields(stab_zoom,  "ComponentTags"),
+        'BurstStability':  skip_fields(stab_2nd,   "ComponentTags"),
+        'BurstStability':  skip_fields(stab_burst, "ComponentTags"),
+        'ReadyingState':   only_fields(readying,   "ReadyingTimes[0]",
+                                                   "ReadyingTimes[1]",
+                                                   "ReadyingTimes[2]")
     }
 
     return {k: sort_properties(v) for k, v in gun.items() if v is not None}
+
+def json_default(obj):
+    if isinstance(obj, Enum):
+        return obj._name_
+    elif isinstance(obj, UProperty):
+        if obj.StructName == "RuntimeFloatCurve":
+            external = obj.Data.get("ExternalCurve", None)
+            editor = obj.Data.get("EditorCurveData", None)
+            if external is not None:
+                return json_default(external.FloatCurve.get("Keys", []))
+            elif editor is not None:
+                return json_default(editor.get("Keys", []))
+
+        if obj.StructName == "RichCurveKey":
+            if obj.Data.TangentWeightMode != RCTWM.RCTWM_WeightedNone:
+                raise NotImplementedError
+            return {'InterpMode':    json_default(obj.Data.InterpMode),
+                    'Time':          json_default(obj.Data.Time),
+                    'Value':         json_default(obj.Data.Value),
+                    'ArriveTangent': json_default(obj.Data.ArriveTangent),
+                    'LeaveTangent':  json_default(obj.Data.LeaveTangent)}
+
+        return json_default(obj.Data)
+    elif isinstance(obj, UArrayProperty):
+        return json_default(obj.elems)
+    elif isinstance(obj, UStructProperty):
+        return json_default(obj.fields)
+    elif isinstance(obj, float):
+        return next((r for r in (round(obj, n) for n in range(8))
+                             if float32(obj) == float32(r)), obj)
+    elif isinstance(obj, dict):
+        return {k: json_default(v) for k, v in obj.items()}
+    elif hasattr(obj, "__dict__"):
+        return json_default(obj.__dict__)
+    else:
+        return obj
 
 def dump_gun(path):
     game_path = get_game_path(path)
     out_path = get_output_path(path)
     gun = read_gun(AssetManager(game_path), path)
-
-    def json_default(obj):
-        if isinstance(obj, Enum):
-            return obj._name_
-        elif isinstance(obj, UProperty):
-            if obj.StructName == "RuntimeFloatCurve":
-                external = obj.Data.get("ExternalCurve", None)
-                if external is not None:
-                    curve = external.FloatCurve
-                else:
-                    curve = obj.Data.get("EditorCurveData", None)
-                    if curve is None:
-                        return {}
-                return json_default(curve.get("Keys", {}))
-            return json_default(obj.Data)
-        elif isinstance(obj, UArrayProperty):
-            return json_default(obj.elems)
-        elif isinstance(obj, UStructProperty):
-            return json_default(obj.fields)
-        elif isinstance(obj, float):
-            return round(obj, 5)
-        elif isinstance(obj, dict):
-            return {k: json_default(v) for k, v in obj.items()}
-        elif hasattr(obj, "__dict__"):
-            return json_default(obj.__dict__)
-        else:
-            return obj
 
     output = json.dumps(gun, default=json_default, indent=4)
 
