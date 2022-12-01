@@ -195,15 +195,16 @@ def read_gun(manager, path):
             blueprint = manager.read_export(reader, export.ObjectName)
             break
 
-    magazine   = get_component(blueprint, "MagazineAmmo")
-    reserve    = get_component(blueprint, "ReserveAmmo")
-    firing     = get_component(blueprint, "FiringState")
-    zoom_rof   = get_component(blueprint, "Comp_Gun_ZoomFiringRateModifier")
-    stability  = get_component(blueprint, "Stability")
-    stab_zoom  = get_component(blueprint, "ZoomedStability")
-    stab_2nd   = get_component(blueprint, "SecondaryModeStability")
-    stab_burst = get_component(blueprint, "BurstStability")
-    readying   = get_component(blueprint, "ReadyingState")
+    magazine    = get_component(blueprint, "MagazineAmmo")
+    reserve     = get_component(blueprint, "ReserveAmmo")
+    firing      = get_component(blueprint, "FiringState")
+    zoom_rof    = get_component(blueprint, "Comp_Gun_ZoomFiringRateModifier")
+    stability   = get_component(blueprint, "Stability")
+    stab_zoom   = get_component(blueprint, "ZoomedStability")
+    stab_burst1 = get_component(blueprint, "SecondaryModeStability")
+    stab_burst2 = get_component(blueprint, "BurstStability")
+    stab_burst3 = get_component(blueprint, "BurstModeStability")
+    readying    = get_component(blueprint, "ReadyingState")
 
     projectile  = firing.ProjectileTuning.ProjectileFired
     damage_comp = get_component(projectile, "DamageProjectileEffectComponent")
@@ -214,25 +215,45 @@ def read_gun(manager, path):
     wall_pen.fields.setdefault("PenetrationPowerMultiplier", 1.0)
 
     gun = {
-        'DamageTuning':    skip_fields(damage,     "DamageType"),
+        'DamageTuning':    skip_fields(damage,      "DamageType"),
         'MagazineAmmo':    magazine,
         'ReserveAmmo':     reserve,
-        'FiringState':     only_fields(firing,     "FiringRate",
-                                                   "ErrorPower",
-                                                   "ErrorRetries"),
-        'ZoomFiringRate':  only_fields(zoom_rof,   "ZoomFiringRateMultiplier"),
-        'Penetration':     only_fields(wall_pen,   "StoppingDistanceMultiplier",
-                                                   "PenetrationPowerMultiplier"),
-        'Stability':       skip_fields(stability,  "ComponentTags"),
-        'ZoomedStability': skip_fields(stab_zoom,  "ComponentTags"),
-        'BurstStability':  skip_fields(stab_2nd,   "ComponentTags"),
-        'BurstStability':  skip_fields(stab_burst, "ComponentTags"),
-        'ReadyingState':   only_fields(readying,   "ReadyingTimes[0]",
-                                                   "ReadyingTimes[1]",
-                                                   "ReadyingTimes[2]")
+        'FiringState':     only_fields(firing,      "FiringRate",
+                                                    "ErrorPower",
+                                                    "ErrorRetries"),
+        'ZoomFiringRate':  only_fields(zoom_rof,    "ZoomFiringRateMultiplier"),
+        'Penetration':     only_fields(wall_pen,    "StoppingDistanceMultiplier",
+                                                    "PenetrationPowerMultiplier"),
+        'Stability':       skip_fields(stability,   "ComponentTags"),
+        'ZoomedStability': skip_fields(stab_zoom,   "ComponentTags"),
+        'BurstStability1': skip_fields(stab_burst1, "ComponentTags"),
+        'BurstStability2': skip_fields(stab_burst2, "ComponentTags"),
+        'BurstStability3': skip_fields(stab_burst3, "ComponentTags"),
+        'ReadyingState':   only_fields(readying,    "ReadyingTimes[0]",
+                                                    "ReadyingTimes[1]",
+                                                    "ReadyingTimes[2]")
     }
 
     return {k: sort_properties(v) for k, v in gun.items() if v is not None}
+
+def process_curve(keys):
+    for i, (prev, key) in enumerate(zip([None, *keys], keys)):
+        if key.TangentWeightMode != RCTWM.RCTWM_WeightedNone:
+            raise NotImplementedError
+
+        out = {}
+
+        if i != len(keys) - 1:
+            out['InterpMode'] = json_default(key.InterpMode)
+        if len(keys) != 1:
+            out['Time'] = json_default(key.Time)
+        out['Value'] = json_default(key.Value)
+        if i != 0 and prev.InterpMode == RCIM.RCIM_Cubic:
+            out['ArriveTangent'] = json_default(key.ArriveTangent)
+        if i != len(keys) - 1 and key.InterpMode == RCIM.RCIM_Cubic:
+            out['LeaveTangent'] = json_default(key.LeaveTangent)
+
+        yield out
 
 def json_default(obj):
     if isinstance(obj, Enum):
@@ -246,22 +267,15 @@ def json_default(obj):
             elif editor is not None:
                 return json_default(editor.get("Keys", []))
 
-        if obj.StructName == "RichCurveKey":
-            if obj.Data.TangentWeightMode != RCTWM.RCTWM_WeightedNone:
-                raise NotImplementedError
-            return {'InterpMode':    json_default(obj.Data.InterpMode),
-                    'Time':          json_default(obj.Data.Time),
-                    'Value':         json_default(obj.Data.Value),
-                    'ArriveTangent': json_default(obj.Data.ArriveTangent),
-                    'LeaveTangent':  json_default(obj.Data.LeaveTangent)}
-
         return json_default(obj.Data)
     elif isinstance(obj, UArrayProperty):
+        if obj.elems and obj.elems[0].StructName == "RichCurveKey":
+            return [*process_curve(obj)]
         return json_default(obj.elems)
     elif isinstance(obj, UStructProperty):
         return json_default(obj.fields)
     elif isinstance(obj, float):
-        return next((r for r in (round(obj, n) for n in range(8))
+        return next((r for r in (round(obj, n) for n in range(10))
                              if float32(obj) == float32(r)), obj)
     elif isinstance(obj, dict):
         return {k: json_default(v) for k, v in obj.items()}
