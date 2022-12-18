@@ -113,7 +113,7 @@ def dump_asset(path):
 
 def main():
     logging.basicConfig(format="%(levelname)s: %(message)s",
-                        level=logging.DEBUG)
+                        level=logging.INFO)
 
     if len(sys.argv) < 2:
         print("Usage: asset_dump.py <uasset 1> <uasset 2> ...", file=sys.stderr)

@@ -1,7 +1,8 @@
-import sys
-import os
 import json
+import logging
+import os
 import re
+import sys
 import traceback
 from enum import Enum
 from numpy import float32
@@ -295,6 +296,9 @@ def dump_gun(path):
         print(f"Unable to open output file \"{out_path}\"", file=sys.stderr)
 
 def main():
+    logging.basicConfig(format="%(levelname)s: %(message)s",
+                        level=logging.INFO)
+
     if len(sys.argv) < 2:
         print("Usage: gun_dump.py <uasset 1> <uasset 2> ...", file=sys.stderr)
         return
