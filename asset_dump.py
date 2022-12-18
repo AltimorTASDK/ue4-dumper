@@ -4,6 +4,7 @@ import os
 import re
 import sys
 import traceback
+from collections import UserString
 from enum import Enum
 from numpy import float32
 from ue4 import FPackageReader, FName
@@ -28,20 +29,17 @@ def read_package(reader):
         logging.debug(f"Name {i}: {name}")
 
     for i in range(len(reader.ExportTable)):
-        logging.debug(f"Export {i}: {reader.GetObjectFullName(i + 1)}")
+        logging.debug(f"Export {i}: {reader.GetObjectDeclName(i + 1)}")
 
     for i in range(len(reader.ImportTable)):
-        logging.debug(f"Import {i}: {reader.GetObjectFullName(-i - 1)}")
+        logging.debug(f"Import {i}: {reader.GetObjectDeclName(-i - 1)}")
 
     objects = {}
     for i, export in enumerate(reader.ExportTable):
+        logging.debug(f"Export {reader.GetObjectFullName(i + 1)} @ "
+                      f"{reader.offset_string()} size {export.SerialSize:08X}")
+
         reader.seek(export.SerialOffset)
-        name = reader.GetObjectFullName(i + 1)
-
-        logging.debug(f"Export {name} @ {reader.offset_string()} "
-                      f"package {reader.GetObjectName(export.PackageIndex)} "
-                      f"size {export.SerialSize:08X}")
-
         obj = UStructProperty(reader)
 
         if reader.GetObjectName(export.ClassIndex) == "DataTable":
@@ -50,7 +48,7 @@ def read_package(reader):
             obj.RowMap = {FName(reader): UStructProperty(reader)
                           for _ in range(NumRows)}
 
-        objects[name] = obj
+        objects[reader.GetObjectDeclName(i + 1)] = obj
 
     return objects
 
@@ -83,6 +81,8 @@ def dump_asset(path):
     def json_default(obj):
         if isinstance(obj, Enum):
             return obj._name_
+        elif isinstance(obj, UserString):
+            return str(obj)
         elif isinstance(obj, UProperty):
             if obj.Type == "MapProperty" and obj.InnerType == "StructProperty":
                 return [{"Key": json_default(k), "Value": json_default(v)}

@@ -44,7 +44,7 @@ class FDummyTag():
     def __init__(self, type):
         self.Name = None
         self.Type = type
-        self.Size = None
+        self.Size = 0
         self.ArrayIndex = 0
         if type == "StructProperty":
             self.StructName = ""
@@ -58,9 +58,12 @@ class UProperty():
 
     def __init__(self, reader, tag=None):
         offset = reader.offset_string()
+        tag_size = 0
 
         if tag is None:
+            tag_start = reader.tell()
             tag = FPropertyTag(reader)
+            tag_size = reader.tell() - tag_start
             if tag.Name == "None":
                 self.Name = "None"
                 self.Type = "None"
@@ -72,11 +75,13 @@ class UProperty():
             tag.BoolVal = reader.bool()
 
         if tag.Type == "StructProperty":
-            UProperty.debug(f"Property struct {tag.StructName} {tag.Name} "
-                            f"@ {offset} size {tag.Size}")
+            display_type = f"struct {tag.StructName}"
         else:
-            UProperty.debug(f"Property {tag.Type} {tag.Name} "
-                            f"@ {offset} size {tag.Size}")
+            display_type = tag.Type
+
+        UProperty.debug(f"Property @ {offset} "
+                        f"tag size {tag_size:04X} size {tag.Size:04X}: "
+                        f"{display_type} {tag.Name}")
 
         self.Name = tag.Name
         self.Type = tag.Type

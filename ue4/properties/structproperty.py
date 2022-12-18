@@ -1,4 +1,5 @@
 from .property import UProperty, PROPERTY_TYPE_MAP
+from ue4 import FName
 from ue4.structs import STRUCT_TYPE_MAP
 
 class UStructProperty:

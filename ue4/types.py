@@ -1,3 +1,4 @@
+from collections import UserString
 import struct
 
 PACKAGE_FILE_TAG = 0x9E2A83C1
@@ -147,8 +148,8 @@ class FObjectImport():
         self.PackageIndex = reader.s32()
         self.ObjectName = FName(reader)
 
-class ExImTable():
-    """Read only export/import table with more detailed IndexError"""
+class PackageTable():
+    """Read only table with more detailed IndexError"""
     def __init__(self, table):
         self.table = table
 
@@ -156,8 +157,7 @@ class ExImTable():
         try:
             return self.table[index]
         except IndexError as exception:
-            exception.args = (*exception.args,
-                              f"index {index}/{len(self) - 1}")
+            exception.args = (*exception.args, f"index {index}/{len(self) - 1}")
             raise exception
 
     def __len__(self):
@@ -172,16 +172,19 @@ class FPackageReader(BinaryReader):
         self.Summary = FPackageFileSummary(self)
 
         self.seek(self.Summary.NameOffset)
-        self.NameTable = read_array(
-            self, FNameEntry, self.Summary.NameCount)
+        self.NameTable = PackageTable(self.array(FNameEntry,
+                                                 self.Summary.NameCount))
 
         self.seek(self.Summary.ExportOffset)
-        self.ExportTable = ExImTable(read_array(
-            self, FObjectExport, self.Summary.ExportCount))
+        self.ExportTable = PackageTable(self.array(FObjectExport,
+                                                   self.Summary.ExportCount))
 
         self.seek(self.Summary.ImportOffset)
-        self.ImportTable = ExImTable(read_array(
-            self, FObjectImport, self.Summary.ImportCount))
+        self.ImportTable = PackageTable(self.array(FObjectImport,
+                                                   self.Summary.ImportCount))
+
+    def array(self, type, count):
+        return [type(self) for _ in range(count)]
 
     def offset_string(self):
         if self.uexp_offset is not None and self.offset >= self.uexp_offset:
@@ -189,66 +192,81 @@ class FPackageReader(BinaryReader):
         else:
             return f"uasset:{self.offset:08X}"
 
+    def ExIm(self, index):
+        if index < 0:
+            return self.ImportTable[-index - 1]
+        if index > 0:
+            return self.ExportTable[index - 1]
+        return None
+
     def GetObjectName(self, index):
-        if index < 0:
-            return self.ImportTable[-index - 1].ObjectName
-        elif index > 0:
-            return self.ExportTable[index - 1].ObjectName
-        else:
-            return "None"
+        return self.ExIm(index).ObjectName if index != 0 else "None"
 
-    def GetObjectQualifiedName(self, index):
-        if index < 0:
-            outer = self.ImportTable[-index - 1].PackageIndex
-        elif index > 0:
-            outer = self.ExportTable[index - 1].SuperIndex
-        else:
+    def GetObjectPath(self, index):
+        if index == 0:
             return "None"
-
-        name = self.GetObjectName(index)
-        if outer == 0:
-            return name
-        else:
-            return f"{self.GetObjectQualifiedName(outer)}.{name}"
+        if (outer := self.ExIm(index).PackageIndex) != 0:
+            return f"{self.GetObjectPath(outer)}.{self.GetObjectName(index)}"
+        return self.GetObjectName(index)
 
     def GetObjectClassName(self, index):
         if index < 0:
             return self.ImportTable[-index - 1].ClassName
-        elif index > 0:
-            return self.GetObjectName(self.ExportTable[index - 1].ClassIndex)
-        else:
-            return "None"
+        if index > 0:
+            return self.GetObjectName(self.ExIm(index).ClassIndex)
+        return "None"
 
     def GetObjectFullName(self, index):
         if index == 0:
             return "None"
-        return (f"{self.GetObjectClassName(index)} "
-                f"{self.GetObjectQualifiedName(index)}")
+        return f"{self.GetObjectClassName(index)} {self.GetObjectPath(index)}"
 
-def FName(reader):
-    Index = reader.u32()
-    ExtraIndex = reader.u32()
-
-    if Index > len(reader.NameTable):
-        print(f"Invalid name index 0x{Index:08X} @ {reader.offset_string()}")
-
-    name = reader.NameTable[Index]
-    if ExtraIndex == 0:
+    def GetObjectDeclName(self, index):
+        name = self.GetObjectFullName(index)
+        if index > 0:
+            export = self.ExIm(index)
+            if export.SuperIndex != 0:
+                name += f" : {self.GetObjectPath(export.SuperIndex)}"
+            if export.TemplateIndex != index:
+                name += f" : {self.GetObjectPath(export.TemplateIndex)}"
         return name
 
-    return f"{name}_{ExtraIndex - 1}"
+class FName(UserString):
+    def __init__(self, reader):
+        match reader:
+            case FPackageReader():
+                self.Index = reader.u32()
+                self.ExtraIndex = reader.u32()
+                self.data = reader.NameTable[self.Index]
+                if self.ExtraIndex != 0:
+                    self.data += f"_{self.ExtraIndex - 1}"
+            case _:
+                self.Index = None
+                self.ExtraIndex = None
+                super().__init__(reader)
 
-def FNameEntry(reader):
-    name = FString(reader)
-    reader.u16() # NonCasePreservingHash
-    reader.u16() # CasePreservingHash
-    return name
+    def __eq__(self, other):
+        if not isinstance(other, FName) or None in (self.Index, other.Index):
+            return super().__eq__(other)
+        return (self.Index, self.ExtraIndex) == (other.Index, other.ExtraIndex)
+
+    def __hash__(self):
+        return hash(self.data)
+
+class FNameEntry(UserString):
+    def __init__(self, reader):
+        match reader:
+            case FPackageReader():
+                self.data = FString(reader)
+                self.NonCasePreservingHash = reader.u16()
+                self.CasePreservingHash = reader.u16()
+            case _:
+                self.NonCasePreservingHash = None
+                self.CasePreservingHash = None
+                super().__init__(reader)
 
 def FString(reader):
     return reader.string(reader.u32())[:-1].decode()
 
 def TArray(reader, type):
-    return read_array(reader, type, reader.u32())
-
-def read_array(reader, type, count):
-    return [type(reader) for _ in range(count)]
+    return reader.array(type, reader.u32())
