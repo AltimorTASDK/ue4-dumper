@@ -4,10 +4,9 @@ import os
 import re
 import sys
 import traceback
-from collections import UserString
 from enum import Enum
 from numpy import float32
-from ue4 import FPackageReader, FName
+from ue4 import FName, FPackageReader
 from ue4.properties import UProperty, UArrayProperty, UObjectProperty
 from ue4.properties import UStructProperty
 
@@ -81,7 +80,7 @@ def dump_asset(path):
     def json_default(obj):
         if isinstance(obj, Enum):
             return obj._name_
-        elif isinstance(obj, UserString):
+        elif isinstance(obj, FName):
             return str(obj)
         elif isinstance(obj, UProperty):
             if obj.Type == "MapProperty" and obj.InnerType == "StructProperty":

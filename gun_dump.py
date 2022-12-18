@@ -5,7 +5,7 @@ import re
 import traceback
 from enum import Enum
 from numpy import float32
-from ue4 import FPackageReader
+from ue4 import FName, FPackageReader
 from ue4.properties import UProperty, UArrayProperty, UObjectProperty
 from ue4.properties import UStructProperty
 from ue4.structs import STRUCT_TYPE_MAP
@@ -251,6 +251,8 @@ def process_curve(keys):
 def json_default(obj):
     if isinstance(obj, Enum):
         return obj._name_
+    elif isinstance(obj, FName):
+        return str(obj)
     elif isinstance(obj, UProperty):
         if obj.StructName == "RuntimeFloatCurve":
             external = obj.Data.get("ExternalCurve", None)
