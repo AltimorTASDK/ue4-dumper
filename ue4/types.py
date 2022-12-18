@@ -200,7 +200,7 @@ class FPackageReader(BinaryReader):
         return None
 
     def GetObjectName(self, index):
-        return self.ExIm(index).ObjectName if index != 0 else "None"
+        return str(self.ExIm(index).ObjectName) if index != 0 else "None"
 
     def GetObjectPath(self, index):
         if index == 0:
