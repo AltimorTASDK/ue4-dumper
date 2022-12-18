@@ -50,7 +50,7 @@ def bezier(a, *b, t):
 def eval_curve(curve, time):
     time = float32(time)
 
-    if time <= curve[0].Time:
+    if len(curve) == 1 or time <= curve[0].Time:
         return curve[0].Value
     if time >= curve[-1].Time:
         return curve[-1].Value
