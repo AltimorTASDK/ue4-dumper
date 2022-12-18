@@ -232,7 +232,7 @@ class FPackageReader(BinaryReader):
             export = self.ExIm(index)
             if export.SuperIndex != 0:
                 name += f" : {self.GetObjectPath(export.SuperIndex)}"
-            if export.TemplateIndex != index:
+            elif export.TemplateIndex != index:
                 name += f" : {self.GetObjectPath(export.TemplateIndex)}"
         return name
 
