@@ -1,11 +1,12 @@
-import sys
-import os
 import json
+import logging
+import os
 import re
+import sys
 import traceback
 from enum import Enum
 from numpy import float32
-from ue4 import FPackageReader, FName, debug_print
+from ue4 import FPackageReader, FName
 from ue4.properties import UProperty, UArrayProperty, UObjectProperty
 from ue4.properties import UStructProperty
 
@@ -24,19 +25,23 @@ def get_output_path(path):
 
 def read_package(reader):
     for i, name in enumerate(reader.NameTable):
-        debug_print(f"Name {i}: {name}")
+        logging.debug(f"Name {i}: {name}")
 
     for i in range(len(reader.ExportTable)):
-        debug_print(f"Export {i}: {reader.GetObjectFullName(i + 1)}")
+        logging.debug(f"Export {i}: {reader.GetObjectFullName(i + 1)}")
 
     for i in range(len(reader.ImportTable)):
-        debug_print(f"Import {i}: {reader.GetObjectFullName(-i - 1)}")
+        logging.debug(f"Import {i}: {reader.GetObjectFullName(-i - 1)}")
 
     objects = {}
     for i, export in enumerate(reader.ExportTable):
         reader.seek(export.SerialOffset)
         name = reader.GetObjectFullName(i + 1)
-        debug_print(f"Export {name} @ {reader.offset_string()}")
+
+        logging.debug(f"Export {name} @ {reader.offset_string()} "
+                      f"package {reader.GetObjectName(export.PackageIndex)} "
+                      f"size {export.SerialSize:08X}")
+
         obj = UStructProperty(reader)
 
         if reader.GetObjectName(export.ClassIndex) == "DataTable":
@@ -90,7 +95,8 @@ def dump_asset(path):
         elif isinstance(obj, UStructProperty):
             return json_default(obj.fields)
         elif isinstance(obj, float):
-            return round(obj, 7)
+            return next((r for r in (round(obj, n) for n in range(10))
+                                if float32(obj) == float32(r)), obj)
         elif isinstance(obj, dict):
             return {json_default(k): json_default(v) for k, v in obj.items()}
         elif hasattr(obj, "__dict__"):
@@ -107,6 +113,9 @@ def dump_asset(path):
         print(f"Unable to open output file \"{out_path}\"", file=sys.stderr)
 
 def main():
+    logging.basicConfig(format="%(levelname)s: %(message)s",
+                        level=logging.DEBUG)
+
     if len(sys.argv) < 2:
         print("Usage: asset_dump.py <uasset 1> <uasset 2> ...", file=sys.stderr)
         return

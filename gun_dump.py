@@ -13,8 +13,9 @@ from ue4.structs import ERichCurveInterpMode as RCIM
 from ue4.structs import ERichCurveTangentMode as RCTM
 from ue4.structs import ERichCurveTangentWeightMode as RCTWM
 
-GAME_PATH_RE = re.compile(r"((?:.*[/\\]|^)(?:Game[/\\]|Content[/\\]))(.*)")
-GUN_PATH_RE  = re.compile(r"((?:.*[/\\]|^)(?:Equippables[/\\]Guns[/\\]))(.*)")
+GAME_PATH_RE     = re.compile(r"((?:.*[/\\]|^)(?:Game[/\\]|Content[/\\]))(.*)")
+GUN_PATH_RE      = re.compile(r"((?:.*[/\\]|^)(?:Equippables[/\\]Guns[/\\]))(.*)")
+ABILITY_PATH_RE  = re.compile(r"((?:.*[/\\]|^)(?:Characters[/\\]))(.*)")
 
 def get_game_path(path):
     """Get the base game content path based on a uasset path."""
@@ -22,7 +23,11 @@ def get_game_path(path):
 
 def get_gun_path(path):
     """Get the path of a gun uasset relative to the Guns directory."""
-    return GUN_PATH_RE.match(os.path.abspath(path)).group(2)
+    if match := ABILITY_PATH_RE.match(os.path.abspath(path)):
+        return match.group(2)
+    if match := GUN_PATH_RE.match(os.path.abspath(path)):
+        return match.group(2)
+    return os.path.basename(path)
 
 def get_output_path(path):
     """Generate an output path."""
@@ -125,10 +130,10 @@ class AssetManager:
 
 def inherit_properties(sub, base):
     if isinstance(sub, dict):
-        for key in set(base.keys()).difference(set(sub.keys())):
-            sub[key] = base[key]
-        for key in set(base.keys()).intersection(set(sub.keys())):
-            sub[key] = inherit_properties(sub[key], base[key])
+        new = {**base, **{k: inherit_properties(sub[k], base[k])
+                             if k in base else sub[k] for k in sub}}
+        sub.clear()
+        sub.update(new)
     elif isinstance(sub, UStructProperty):
         sub.fields = inherit_properties(sub.fields, base.fields)
     elif isinstance(sub, UProperty):
@@ -138,18 +143,6 @@ def inherit_properties(sub, base):
             return sub
         sub.Data = inherit_properties(sub.Data, base.Data)
     return sub
-
-def sort_properties(obj):
-    if isinstance(obj, dict):
-        return {key: sort_properties(obj[key]) for key in sorted(obj)}
-    elif isinstance(obj, list):
-        for i, value in enumerate(obj):
-            obj[i] = sort_properties(value)
-    elif isinstance(obj, UStructProperty):
-        obj.fields = sort_properties(obj.fields)
-    elif isinstance(obj, UProperty):
-        obj.Data = sort_properties(obj.Data)
-    return obj
 
 def only_fields(obj, *whitelist):
     if obj is None:
@@ -234,7 +227,7 @@ def read_gun(manager, path):
                                                     "ReadyingTimes[2]")
     }
 
-    return {k: sort_properties(v) for k, v in gun.items() if v is not None}
+    return {k: v for k, v in gun.items() if v is not None}
 
 def process_curve(keys):
     for i, (prev, key) in enumerate(zip([None, *keys], keys)):

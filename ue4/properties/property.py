@@ -1,4 +1,5 @@
-from ue4 import FName, FGuid, FString, FPackageReader, debug_print
+import logging
+from ue4 import FName, FGuid, FString, FPackageReader
 from ue4.structs import STRUCT_TYPE_MAP
 
 PROPERTY_TYPE_MAP = {
@@ -51,6 +52,10 @@ class FDummyTag():
 class UProperty():
     IndentLevel = 0
 
+    @staticmethod
+    def debug(msg, *args, **kwargs):
+        logging.debug(f"{'    ' * UProperty.IndentLevel}{msg}", *args, **kwargs)
+
     def __init__(self, reader, tag=None):
         offset = reader.offset_string()
 
@@ -66,13 +71,12 @@ class UProperty():
             # Tagless bools in MapProperty
             tag.BoolVal = reader.bool()
 
-        debug_print("    " * UProperty.IndentLevel, end="")
         if tag.Type == "StructProperty":
-            debug_print(f"Property struct {tag.StructName} {tag.Name} "
-                        f"@ {offset} size {tag.Size}")
+            UProperty.debug(f"Property struct {tag.StructName} {tag.Name} "
+                            f"@ {offset} size {tag.Size}")
         else:
-            debug_print(f"Property {tag.Type} {tag.Name} "
-                        f"@ {offset} size {tag.Size}")
+            UProperty.debug(f"Property {tag.Type} {tag.Name} "
+                            f"@ {offset} size {tag.Size}")
 
         self.Name = tag.Name
         self.Type = tag.Type
@@ -106,15 +110,14 @@ class UProperty():
 
             NumEntries = reader.s32()
 
-            debug_print("    " * UProperty.IndentLevel, end="")
-            debug_print(f"InnerType {tag.InnerType} " +
-                        f"ValueType {tag.ValueType} NumEntries {NumEntries} " +
-                        f"NumKeysToRemove {NumKeysToRemove}")
+            UProperty.debug(f"InnerType {tag.InnerType} "
+                            f"ValueType {tag.ValueType} "
+                            f"NumEntries {NumEntries} "
+                            f"NumKeysToRemove {NumKeysToRemove}")
 
             self.Data = {
                 UProperty(reader, key_tag).Data: UProperty(reader, value_tag)
-                    for _ in range(NumEntries)
-            }
+                for _ in range(NumEntries)}
 
             UProperty.IndentLevel -= 1
             return
