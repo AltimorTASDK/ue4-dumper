@@ -199,6 +199,11 @@ class FPackageReader(BinaryReader):
             return self.ExportTable[index - 1]
         return None
 
+    def GetObjectPackage(self, index):
+        while index != 0 and (package := self.ExIm(index).PackageIndex) != 0:
+            index = package
+        return self.GetObjectName(index)
+
     def GetObjectName(self, index):
         return str(self.ExIm(index).ObjectName) if index != 0 else "None"
 
@@ -244,11 +249,6 @@ class FName(UserString):
                 self.Index = None
                 self.ExtraIndex = None
                 super().__init__(reader)
-
-    def __eq__(self, other):
-        if not isinstance(other, FName) or None in (self.Index, other.Index):
-            return super().__eq__(other)
-        return (self.Index, self.ExtraIndex) == (other.Index, other.ExtraIndex)
 
     def __hash__(self):
         return hash(self.data)
