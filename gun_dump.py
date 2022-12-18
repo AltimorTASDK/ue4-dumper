@@ -69,43 +69,38 @@ class AssetManager:
         if name in self.object_cache[reader]:
             return self.object_cache[reader][name]
 
-        for export in reader.ExportTable:
-            if export.ObjectName == name:
-                reader.seek(export.SerialOffset)
-                obj = UStructProperty(reader)
-                self.object_cache[reader][name] = obj
-                self.resolve_references(reader, obj)
+        for i, export in enumerate(reader.ExportTable):
+            if export.ObjectName != name:
+                continue
 
-                obj.default = self.read_export(reader, f"Default__{name}")
-                outer       = self.read_object(reader, export.SuperIndex)
-                obj.outer_package, obj.outer = outer
-                return obj
+            reader.seek(export.SerialOffset)
+            obj = UStructProperty(reader)
+            self.object_cache[reader][name] = obj
+            self.resolve_references(reader, obj)
 
-    def read_object(self, reader, index, *, default=False):
+            obj.name     = name
+            obj.default  = self.read_export(reader, f"Default__{name}")
+            obj.super    = self.read_object(reader, export.SuperIndex)[1]
+            obj.template = self.read_object(reader, export.TemplateIndex)[1]
+
+            if obj.template is not obj and obj.template is not None:
+                return inherit_properties(obj, obj.template)
+            return obj
+
+    def read_object(self, reader, index):
+        entry = reader.ExIm(index)
         if index > 0:
-            name = reader.ExportTable[index - 1].ObjectName
-            if default:
-                name = f"Default__{name}"
-            return (reader, self.read_export(reader, name))
+            return (reader, self.read_export(reader, entry.ObjectName))
         elif index < 0:
-            imp = reader.ImportTable[-index - 1]
-            path = reader.GetObjectName(imp.PackageIndex)
-
-            if not path.startswith("/Game/"):
-                return (None, None)
-
-            try:
-                path = os.path.join(self.game_path, path[6:]) + ".uasset"
-                package = self.open_package(os.path.join(self.game_path, path))
-            except IOError:
-                return (None, None)
-
-            name = imp.ObjectName
-            if default:
-                name = f"Default__{name}"
-            return (package, self.read_export(package, name))
-        else:
-            return (None, None)
+            path = reader.GetObjectPackage(index)
+            if path.startswith("/Game/"):
+                try:
+                    path = os.path.join(self.game_path, path[6:]) + ".uasset"
+                    pkg = self.open_package(os.path.join(self.game_path, path))
+                    return (pkg, self.read_export(pkg, entry.ObjectName))
+                except IOError:
+                    pass
+        return (None, None)
 
     def resolve_references(self, reader, obj):
         if obj in self.visited:
@@ -137,11 +132,7 @@ def inherit_properties(sub, base):
         sub.update(new)
     elif isinstance(sub, UStructProperty):
         sub.fields = inherit_properties(sub.fields, base.fields)
-    elif isinstance(sub, UProperty):
-        if sub.Type == "StructProperty" and sub.StructName in STRUCT_TYPE_MAP:
-            return sub
-        if sub.Type == "ObjectProperty":
-            return sub
+    elif isinstance(sub, UProperty) and sub.Type != "ObjectProperty":
         sub.Data = inherit_properties(sub.Data, base.Data)
     return sub
 
@@ -163,23 +154,17 @@ def get_component(blueprint, name):
     try:
         for node in blueprint.SimpleConstructionScript.AllNodes:
             if node.InternalVariableName == name:
-                if node.ComponentClass is not None:
-                    base = node.ComponentClass.default
-                    if base is not None:
-                        return inherit_properties(node.ComponentTemplate, base)
                 return node.ComponentTemplate
     except AttributeError:
         pass
     try:
         for node in blueprint.InheritableComponentHandler.Records:
             if node.ComponentKey.SCSVariableName == name:
-                if blueprint.outer is not None:
-                    base = get_component(blueprint.outer, name)
-                return inherit_properties(node.ComponentTemplate, base)
+                return node.ComponentTemplate
     except AttributeError:
         pass
-    if blueprint.outer is not None:
-        return get_component(blueprint.outer, name)
+    if blueprint.super is not None:
+        return get_component(blueprint.super, name)
 
 def read_gun(manager, path):
     reader = manager.open_package(path)
@@ -274,7 +259,7 @@ def json_default(obj):
         return next((r for r in (round(obj, n) for n in range(10))
                              if float32(obj) == float32(r)), obj)
     elif isinstance(obj, dict):
-        return {k: json_default(v) for k, v in obj.items()}
+        return {json_default(k): json_default(v) for k, v in obj.items()}
     elif hasattr(obj, "__dict__"):
         return json_default(obj.__dict__)
     else:
