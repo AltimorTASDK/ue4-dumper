@@ -153,6 +153,8 @@ def dump_plot(in_path):
     with open(in_path, "r") as file:
         gun = json.load(file, object_hook=JsonHook)
 
+    plt.clf()
+
     plt.rc('lines', linewidth=0.5/ZOOM, markersize=1/ZOOM, markeredgewidth=0)
 
     plt.imshow(plt.imread("recoil_bg.png"), extent=VIEWPORT)
