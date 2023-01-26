@@ -45,12 +45,12 @@ def lerp(a, b, t):
     return a + (b - a) * t
 
 def bezier(a, *b, t):
-    return bezier(*(lerp(*p, t) for p in pairwise([a, *b])), t=t) if b else a
+    return bezier(*(lerp(*p, t) for p in zip([a, *b], b)), t=t) if b else a
 
 def eval_curve(curve, time):
     time = float32(time)
 
-    if len(curve) == 1 or time <= curve[0].Time:
+    if time <= curve[0].Time:
         return curve[0].Value
     if time >= curve[-1].Time:
         return curve[-1].Value
