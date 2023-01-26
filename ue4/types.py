@@ -266,7 +266,11 @@ class FNameEntry(UserString):
                 super().__init__(reader)
 
 def FString(reader):
-    return reader.string(reader.u32())[:-1].decode()
+    length = reader.s32()
+    if length >= 0:
+        return reader.string(length)[:-1].decode()
+    else:
+        return reader.string(length * -2)[:-1].decode("utf-16", "ignore")
 
 def TArray(reader, type):
     return reader.array(type, reader.u32())
