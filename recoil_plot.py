@@ -149,9 +149,7 @@ def fix_overlap(points):
             if (t := line_intersection(points[i:i+2], points[j:j+2])):
                 t[0]
 
-def main():
-    in_path = sys.argv[1]
-
+def dump_plot(in_path):
     with open(in_path, "r") as file:
         gun = json.load(file, object_hook=JsonHook)
 
@@ -190,6 +188,10 @@ def main():
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
     plt.savefig(out_path, dpi=DPI, bbox_inches=bbox)
     print(f"Wrote to \"{out_path}\"")
+
+def main():
+    for path in sys.argv[1:]:
+        dump_plot(path)
 
 if __name__ == "__main__":
     main()
