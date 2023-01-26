@@ -6,7 +6,7 @@ import sys
 import traceback
 from enum import Enum
 from numpy import float32
-from ue4 import FName, FPackageReader
+from ue4 import FName, FPackageReader, FString
 from ue4.properties import UProperty, UArrayProperty, UObjectProperty
 from ue4.properties import UStructProperty
 
@@ -35,10 +35,9 @@ def read_package(reader):
 
     objects = {}
     for i, export in enumerate(reader.ExportTable):
+        reader.seek(export.SerialOffset)
         logging.debug(f"Export {reader.GetObjectFullName(i + 1)} @ "
                       f"{reader.offset_string()} size {export.SerialSize:08X}")
-
-        reader.seek(export.SerialOffset)
         obj = UStructProperty(reader)
 
         if reader.GetObjectName(export.ClassIndex) == "DataTable":
@@ -46,6 +45,13 @@ def read_package(reader):
             NumRows = reader.s32()
             obj.RowMap = {FName(reader): UStructProperty(reader)
                           for _ in range(NumRows)}
+
+        if reader.GetObjectName(export.ClassIndex) == "StringTable":
+            reader.s32()
+            Name = FString(reader)
+            NumEntries = reader.s32()
+            obj = {FString(reader): FString(reader)
+                   for _ in range(NumEntries)}
 
         objects[reader.GetObjectDeclName(i + 1)] = obj
 
