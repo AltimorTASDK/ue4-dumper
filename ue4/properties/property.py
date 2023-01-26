@@ -3,8 +3,13 @@ from ue4 import FName, FGuid, FString, FPackageReader
 from ue4.structs import STRUCT_TYPE_MAP
 
 PROPERTY_TYPE_MAP = {
+    "BoolProperty": FPackageReader.bool,
+    "Int16Property": FPackageReader.s16,
+    "UInt16Property": FPackageReader.u16,
     "IntProperty": FPackageReader.s32,
+    "UInt32Property": FPackageReader.u32,
     "Int64Property": FPackageReader.s64,
+    "UInt64Property": FPackageReader.u64,
     "FloatProperty": FPackageReader.f32,
     "ByteProperty": FName,
     "EnumProperty": FName,
@@ -92,6 +97,12 @@ class UProperty():
         if tag.Type == "StructProperty":
             self.StructName = tag.StructName
             if tag.StructName in STRUCT_TYPE_MAP:
+                if STRUCT_TYPE_MAP[tag.StructName] is None:
+                    # Explicitly skipped
+                    self.Data = f"*Skipped struct {tag.StructName}*"
+                    reader.skip(tag.Size)
+                    UProperty.IndentLevel -= 1
+                    return
                 self.Data = STRUCT_TYPE_MAP[tag.StructName](reader)
                 UProperty.IndentLevel -= 1
                 return
@@ -137,7 +148,10 @@ class UProperty():
         if tag.Type == "ArrayProperty" and tag.InnerType != "StructProperty":
             # Primitive array
             Length = reader.s32()
-            handler = PROPERTY_TYPE_MAP[tag.InnerType]
+            if tag.InnerType == "ByteProperty":
+                handler = FPackageReader.u8
+            else:
+                handler = PROPERTY_TYPE_MAP[tag.InnerType]
             self.Data = [handler(reader) for _ in range(Length)]
             UProperty.IndentLevel -= 1
             return
