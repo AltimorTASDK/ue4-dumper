@@ -5,6 +5,19 @@ import numpy as np
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from recoil_plot import *
 
+# seems to be bezier curve with
+# t0 = 0
+# t1 = N
+# p0 = 1/TapEfficiency
+# p3 = 1
+# m0 = (N/2 - 1/TapEfficiency)/(N/2)
+# m1 = 1
+#
+# where N is shots fired
+
+# sheriff graph https://www.desmos.com/calculator/zhdejitpgh
+# ghost https://www.desmos.com/calculator/0jxm0o9hyx
+
 # single tap
 #SHERIFF = np.array([[0.25, 1.94], [0.28, 1.94], [0.33, 1.95],
 #                    [0.38, 1.96], [0.42, 1.99], [0.47, 2.02],
@@ -26,11 +39,13 @@ SHERIFF = np.array([[0.29, 1.11], [0.33, 1.15], [0.37, 1.20], [0.41, 1.27],
                     [0.91, 2.58], [0.95, 2.64], [0.99, 2.70], [1.03, 2.73],
                     [1.07, 2.75]])
 
-GHOST = np.array([[0.30, 0.72], [0.33, 0.73], [0.36, 0.75],
-                  [0.39, 0.78], [0.44, 0.84], [0.47, 0.88],
-                  [0.50, 0.92], [0.53, 0.96], [0.56, 1.01],
-                  [0.59, 1.06], [0.62, 1.12], [0.65, 1.18]])
+# single tap
+GHOST = np.array([[0.30, 0.72], [0.33, 0.73], [0.36, 0.75], [0.39, 0.78],
+                  [0.42, 0.81], [0.44, 0.84], [0.47, 0.88], [0.50, 0.92],
+                  [0.53, 0.96], [0.56, 1.01], [0.59, 1.06], [0.62, 1.12],
+                  [0.65, 1.18]])
 
+# double tap
 JUDGE = np.array([[2.37, 3.04], [2.42, 3.08], [2.46, 3.12], [2.51, 3.17],
                   [2.65, 3.33], [2.69, 3.38], [2.74, 3.43], [2.79, 3.46],
                   [2.83, 3.49], [2.88, 3.50], [2.97, 3.54], [3.02, 3.57],
