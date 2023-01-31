@@ -15,7 +15,7 @@ DPI        = 300
 CROP       = array([256, 256])
 RESOLUTION = array([VIEWPORT_X, VIEWPORT_Y])
 BBOX       = Bbox(array([RESOLUTION - CROP, RESOLUTION + CROP]) / DPI / 2)
-ZOOM       = 2
+ZOOM       = 1
 
 SHOW_ERROR = False
 
