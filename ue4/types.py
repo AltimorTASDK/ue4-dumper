@@ -114,14 +114,14 @@ class FPackageFileSummary():
         if self.Version != -4:
             self.VersionUE3 = reader.s32()
         else:
-            self.VersionUE3 = -1
+            self.VersionUE3 = 0
 
         self.FileVersion = reader.s32()
 
         if self.Version <= -8:
             self.VersionUE5 = reader.s32()
         else:
-            self.VersionUE5 = -1
+            self.VersionUE5 = 0
 
         self.LicenseeVersion = reader.s32()
 
@@ -129,6 +129,12 @@ class FPackageFileSummary():
             self.CustomVersionContainer = FCustomVersionContainer(reader)
         else:
             self.CustomVersionContainer = None
+
+        if self.FileVersion == self.VersionUE5 == self.LicenseeVersion == 0:
+            # Unversioned package
+            self.FileVersion = VER_UE4_AUTOMATIC_VERSION
+            if self.Version <= -8:
+                self.VersionUE5 = VER_UE5_AUTOMATIC_VERSION
 
         self.HeadersSize = reader.u32()
         self.PackageGroup = FString(reader)
