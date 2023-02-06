@@ -4,6 +4,8 @@ import struct
 
 PACKAGE_FILE_TAG = 0x9E2A83C1
 
+PKG_FilterEditorOnly = 0x80000000
+
 class InvalidPackageMagic(Exception):
     pass
 
@@ -134,7 +136,8 @@ class FPackageFileSummary():
         self.NameCount = reader.u32()
         self.NameOffset = reader.u32()
 
-        if self.FileVersion >= VER_UE4_ADDED_PACKAGE_SUMMARY_LOCALIZATION_ID:
+        if (self.FileVersion >= VER_UE4_ADDED_PACKAGE_SUMMARY_LOCALIZATION_ID
+                and not (self.PackageFlags & PKG_FilterEditorOnly)):
             self.LocalizationId = FString(reader)
         else:
             self.LocalizationId = None
@@ -188,7 +191,8 @@ class FObjectImport():
         self.PackageIndex = reader.s32()
         self.ObjectName = FName(reader)
 
-        if reader.Summary.FileVersion >= VER_UE4_NON_OUTER_PACKAGE_IMPORT:
+        if (not reader.IsFilterEditorOnly() and
+                reader.Summary.FileVersion >= VER_UE4_NON_OUTER_PACKAGE_IMPORT):
             self.PackageName = FName(reader)
         else:
             self.PackageName = None
@@ -248,6 +252,9 @@ class FPackageReader(BinaryReader):
         if index > 0:
             return self.ExportTable[index - 1]
         return None
+
+    def IsFilterEditorOnly(self):
+        return (self.Summary.PackageFlags & PKG_FilterEditorOnly) != 0
 
     def GetObjectPackage(self, index):
         while index != 0 and (package := self.ExIm(index).PackageIndex) != 0:
