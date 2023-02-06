@@ -6,6 +6,7 @@ from .color import FColor, FLinearColor
 from .gameplaytagcontainer import FGameplayTagContainer
 from .moviesceneframerange import FMovieSceneFrameRange
 from .framenumber import FFrameNumber
+from .softobjectpath import FSoftObjectPath
 from ue4 import FGuid
 
 STRUCT_TYPE_MAP = {
@@ -32,5 +33,6 @@ STRUCT_TYPE_MAP = {
     "Timespan": None,
     "Box2D": None,
     "FrameNumber": FFrameNumber,
+    "SoftObjectPath": FSoftObjectPath,
     "KeyHandleMap": lambda r: None
 }

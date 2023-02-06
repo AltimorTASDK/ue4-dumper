@@ -1,4 +1,5 @@
 from collections import UserString
+from .version import *
 import struct
 
 PACKAGE_FILE_TAG = 0x9E2A83C1
@@ -70,6 +71,11 @@ class BinaryReader():
         self.offset += 4
         return result
 
+    def f64(self):
+        (result,) = struct.unpack_from("<d", self.buffer, self.offset)
+        self.offset += 8
+        return result
+
     def string(self, size):
         (result,) = struct.unpack_from(f"{size}s", self.buffer, self.offset)
         self.offset += size
@@ -97,21 +103,49 @@ class FCustomVersionContainer():
 class FPackageFileSummary():
     def __init__(self, reader):
         self.Tag = reader.u32()
+
         if self.Tag != PACKAGE_FILE_TAG:
             raise InvalidPackageMagic()
 
         self.Version = reader.s32()
-        self.VersionUE3 = reader.s32()
+
+        if self.Version != -4:
+            self.VersionUE3 = reader.s32()
+        else:
+            self.VersionUE3 = -1
+
         self.FileVersion = reader.s32()
+
+        if self.Version <= -8:
+            self.VersionUE5 = reader.s32()
+        else:
+            self.VersionUE5 = -1
+
         self.LicenseeVersion = reader.s32()
-        self.CustomVersionContainer = FCustomVersionContainer(reader)
+
+        if self.Version <= -2:
+            self.CustomVersionContainer = FCustomVersionContainer(reader)
+        else:
+            self.CustomVersionContainer = None
+
         self.HeadersSize = reader.u32()
         self.PackageGroup = FString(reader)
         self.PackageFlags = reader.u32()
         self.NameCount = reader.u32()
         self.NameOffset = reader.u32()
-        self.GatherableTextDataCount = reader.u32()
-        self.GatherableTextDataOffset = reader.u32()
+
+        if self.FileVersion >= VER_UE4_ADDED_PACKAGE_SUMMARY_LOCALIZATION_ID:
+            self.LocalizationId = FString(reader)
+        else:
+            self.LocalizationId = None
+
+        if self.FileVersion >= VER_UE4_SERIALIZE_TEXT_IN_PACKAGES:
+            self.GatherableTextDataCount = reader.u32()
+            self.GatherableTextDataOffset = reader.u32()
+        else:
+            self.GatherableTextDataCount = 0
+            self.GatherableTextDataOffset = 0
+
         self.ExportCount = reader.u32()
         self.ExportOffset = reader.u32()
         self.ImportCount = reader.u32()
@@ -135,6 +169,12 @@ class FObjectExport():
         self.PackageFlags = reader.u32()
         self.bNotForEditorGame = reader.u32()
         self.bIsAsset = reader.u32()
+
+        if reader.Summary.VersionUE5 >= VER_UE5_OPTIONAL_RESOURCES:
+            self.bGeneratePublicHash = reader.u32()
+        else:
+            self.bGeneratePublicHash = False
+
         self.FirstExportDependency = reader.s32()
         self.SerializationBeforeSerializationDependencies = reader.s32()
         self.CreateBeforeSerializationDependencies = reader.s32()
@@ -147,6 +187,16 @@ class FObjectImport():
         self.ClassName = FName(reader)
         self.PackageIndex = reader.s32()
         self.ObjectName = FName(reader)
+
+        if reader.Summary.FileVersion >= VER_UE4_NON_OUTER_PACKAGE_IMPORT:
+            self.PackageName = FName(reader)
+        else:
+            self.PackageName = None
+
+        if reader.Summary.VersionUE5 >= VER_UE5_OPTIONAL_RESOURCES:
+            self.bImportOptional = reader.u32()
+        else:
+            self.bImportOptional = False
 
 class PackageTable():
     """Read only table with more detailed IndexError"""
